@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: infotier }
+    ports: ["5432:5432"]
+    volumes: [ "db_data:/var/lib/postgresql/data" ]
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  api:
+    build: ../api-nest
+    depends_on: [db, redis]
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/infotier?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      USE_AWS_S3: "true"
+      AWS_S3_ENDPOINT: s3.amazonaws.com
+      AWS_S3_PORT: 443
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      S3_BUCKET: infotier-prod-uploads-us-east-1-91cx
+      S3_USE_SSL: "true"
+      JWT_SECRET: devsecret
+      USE_GOOGLE_VISION: "false"
+      USE_AZURE_FACE: "false"
+      WEBHOOK_SECRET: please-change-this-to-a-long-random-string
+    ports: ["3000:3000"]
+
+  dashboard:
+    working_dir: /app
+    image: node:20-alpine
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    volumes: [ "../dashboard:/app" ]
+    environment: { VITE_API_BASE: http://localhost:3000/v1 }
+    ports: ["5173:5173"]
+    depends_on: [api]
+
+  docs:
+    image: nginx:alpine
+    volumes: [ "../docs:/usr/share/nginx/html:ro" ]
+    ports: ["8080:80"]
+
+volumes: { db_data: {}, storage_data: {} }

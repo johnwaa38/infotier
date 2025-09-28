@@ -1,0 +1,48 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+
+model Verification {
+  id              String   @id @default(uuid())
+  customerId      String
+  userReference   String
+  idType          String
+  status          String   @default("pending")
+  score           Float?
+  decisionReason  String?
+  ocrData         Json?
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+  evidences       Evidence[]
+  logs            AuditLog[]
+}
+
+model Evidence {
+  id             String   @id @default(uuid())
+  verificationId String
+  s3Path         String
+  mime           String
+  checksum       String
+  createdAt      DateTime @default(now())
+  verification   Verification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  verificationId String
+  action         String
+  actor          String
+  meta           Json?
+  createdAt      DateTime @default(now())
+  verification   Verification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+}
+
+model CustomerConfig {
+  id               String  @id @default(uuid())
+  customerId       String  @unique
+  webhookUrl       String?
+  approveThreshold Float   @default(0.75)
+  rejectThreshold  Float   @default(0.35)
+  retentionDays    Int     @default(30)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}

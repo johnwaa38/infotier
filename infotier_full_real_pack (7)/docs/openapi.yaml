@@ -1,0 +1,46 @@
+openapi: 3.0.3
+info: { title: Infotier API, version: "1.0.0", description: Real verification API }
+servers: [ { url: http://localhost:3000/v1 } ]
+paths:
+  /sessions:
+    post: { summary: Create a verification session, responses: { '200': { description: Session created } } }
+  /verifications:
+    get: { summary: List verifications, responses: { '200': { description: OK } } }
+    post:
+      summary: Upload evidence and create a verification
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                customerId: { type: string }
+                userReference: { type: string }
+                idType: { type: string }
+                id_front: { type: string, format: binary }
+                id_back: { type: string, format: binary }
+                selfie: { type: string, format: binary }
+      responses: { '200': { description: Verification created } }
+  /verifications/{id}:
+    get:
+      summary: Get verification result
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      responses: { '200': { description: OK } }
+  /verifications/{id}/decision:
+    post:
+      summary: Set manual decision
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { action: { type: string, enum: [approved, rejected] }, actor: { type: string } }
+      responses: { '200': { description: OK } }
+  /verifications/{id}/logs:
+    get:
+      summary: List audit logs for a verification
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      responses: { '200': { description: OK } }

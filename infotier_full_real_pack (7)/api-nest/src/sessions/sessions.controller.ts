@@ -1,0 +1,1 @@
+import { Controller, Post } from '@nestjs/common'; import { SessionsService } from './sessions.service'; import { ApiTags } from '@nestjs/swagger'; @ApiTags('sessions') @Controller('v1/sessions') export class SessionsController { constructor(private svc: SessionsService){} @Post() create(){ return this.svc.createSession(); } }

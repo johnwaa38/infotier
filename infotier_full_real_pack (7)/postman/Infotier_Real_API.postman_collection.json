@@ -1,0 +1,162 @@
+{
+  "info": {
+    "name": "Infotier Real API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Session",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/sessions",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "sessions"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json=pm.response.json(); pm.environment.set('upload_token', json.upload_token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Upload Evidence",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{upload_token}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "customerId",
+              "value": "cust_demo",
+              "type": "text"
+            },
+            {
+              "key": "userReference",
+              "value": "user_123",
+              "type": "text"
+            },
+            {
+              "key": "idType",
+              "value": "driver_license",
+              "type": "text"
+            },
+            {
+              "key": "id_front",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "selfie",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base}}/verifications",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "verifications"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json=pm.response.json(); pm.environment.set('verification_id', json.verification_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Verification",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base}}/verifications/{{verification_id}}",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "verifications",
+            "{{verification_id}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Manual Decision",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"action\": \"approved\", \"actor\": \"admin\"}"
+        },
+        "url": {
+          "raw": "{{base}}/verifications/{{verification_id}}/decision",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "verifications",
+            "{{verification_id}}",
+            "decision"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Logs",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base}}/verifications/{{verification_id}}/logs",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "verifications",
+            "{{verification_id}}",
+            "logs"
+          ]
+        }
+      }
+    }
+  ]
+}

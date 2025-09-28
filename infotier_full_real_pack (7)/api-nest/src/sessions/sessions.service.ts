@@ -1,0 +1,1 @@
+import { Injectable } from '@nestjs/common'; import { randomUUID } from 'crypto'; @Injectable() export class SessionsService { createSession(){ const sessionId=`sess_${randomUUID()}`; const uploadToken=Buffer.from(`token_${randomUUID()}`).toString('base64'); return { session_id: sessionId, upload_token: uploadToken, expires_in: 900 }; } }

@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: infotier-api
+    env: docker
+    dockerfilePath: api-nest/Dockerfile
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: infotier-postgres
+          property: connectionString
+      - key: USE_AWS_S3
+        value: "true"
+      - key: AWS_S3_ENDPOINT
+        value: s3.amazonaws.com
+      - key: AWS_S3_PORT
+        value: 443
+      - key: S3_BUCKET
+        value: infotier-prod-uploads-us-east-1-91cx
+      - key: WEBHOOK_SECRET
+        sync: false
+  - type: web
+    name: infotier-dashboard
+    env: static
+    staticPublishPath: dashboard/dist
+    buildCommand: "cd dashboard && npm install && npm run build"
+  - type: web
+    name: infotier-docs
+    env: static
+    staticPublishPath: docs
+
+databases:
+  - name: infotier-postgres
