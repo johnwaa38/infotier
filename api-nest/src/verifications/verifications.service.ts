@@ -1,46 +1,27 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import { randomUUID, createHash, createHmac } from 'crypto';
-import { Client } from 'minio';
 import { StubOcr, StubFace, OcrProvider, FaceProvider } from '../providers';
 import { GoogleVisionProvider } from '../providers/googleVision.provider';
 import { AzureFaceProvider } from '../providers/azureFace.provider';
 import { DecisionService } from './decision.service';
-import fetch from 'node-fetch';
+import { mkdir, readFile, writeFile } from 'fs/promises';
+import { join } from 'path';
 
 @Injectable()
 export class VerificationsService {
-  private s3: Client;
+  private readonly localStoragePath = process.env.LOCAL_STORAGE_PATH || '/tmp/infotier-evidence';
   private ocr: OcrProvider;
   private face: FaceProvider;
 
   constructor(private prisma: PrismaService, private decision: DecisionService) {
-    const useAws = process.env.USE_AWS_S3 === 'true';
-    if (useAws) {
-      this.s3 = new Client({
-        endPoint: process.env.AWS_S3_ENDPOINT || 's3.amazonaws.com',
-        port: parseInt(process.env.AWS_S3_PORT || '443'),
-        useSSL: true,
-        accessKey: process.env.AWS_ACCESS_KEY_ID || '',
-        secretKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-      });
-    } else {
-      this.s3 = new Client({
-        endPoint: process.env.S3_ENDPOINT || 'storage',
-        port: parseInt(process.env.S3_PORT || '9000'),
-        useSSL: process.env.S3_USE_SSL === 'true',
-        accessKey: process.env.S3_ACCESS_KEY || 'minioadmin',
-        secretKey: process.env.S3_SECRET_KEY || 'minioadmin',
-      });
-    }
     this.ocr  = (process.env.USE_GOOGLE_VISION === 'true') ? new GoogleVisionProvider() : new StubOcr();
     this.face = (process.env.USE_AZURE_FACE === 'true') ? new AzureFaceProvider()   : new StubFace();
   }
 
   private async ensureBucket() {
     const bucket = process.env.S3_BUCKET || 'infotier-evidence';
-    const exists = await this.s3.bucketExists(bucket).catch(() => false);
-    if (!exists) await this.s3.makeBucket(bucket);
+    await mkdir(this.localStoragePath, { recursive: true });
     return bucket;
   }
 
@@ -54,7 +35,7 @@ export class VerificationsService {
     for (const f of data.files) {
       const object = `${verificationId}/${f.field}_${randomUUID()}`;
       const checksum = createHash('sha256').update(f.buffer).digest('hex');
-      await this.s3.putObject(bucket, object, f.buffer, { 'Content-Type': f.mime });
+      await writeFile(join(this.localStoragePath, object.replaceAll('/', '_')), f.buffer);
       await this.prisma.evidence.create({ data: { verificationId, s3Path: object, mime: f.mime, checksum } });
       if (f.field === 'selfie') selfieBuf = f.buffer;
     }
@@ -99,14 +80,7 @@ export class VerificationsService {
   }
 
   private async getObjectBuffer(key: string) {
-    const bucket = process.env.S3_BUCKET || 'infotier-evidence';
-    const stream: any = await this.s3.getObject(bucket, key);
-    const chunks: Buffer[] = [];
-    return await new Promise<Buffer>((resolve, reject) => {
-      stream.on('data', (c: Buffer) => chunks.push(c));
-      stream.on('end', () => resolve(Buffer.concat(chunks)));
-      stream.on('error', reject);
-    });
+    return readFile(join(this.localStoragePath, key.replaceAll('/', '_')));
   }
 
   list() { return this.prisma.verification.findMany({ orderBy: { createdAt: 'desc' } }); }

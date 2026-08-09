@@ -1,0 +1,24 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: API deps
+        working-directory: api-nest
+        run: npm ci
+      - name: Prisma generate
+        working-directory: api-nest
+        run: npx prisma generate
+      - name: Type-check
+        working-directory: api-nest
+        run: npx tsc --noEmit
+      - name: Dashboard deps
+        working-directory: dashboard
+        run: npm ci
+      - name: Dashboard build
+        working-directory: dashboard
+        run: npm run build
