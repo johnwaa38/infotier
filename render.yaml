@@ -1,8 +1,11 @@
 services:
   - type: web
     name: infotier-api
-    env: docker
+    runtime: docker
+    plan: free
     dockerfilePath: api-nest/Dockerfile
+    dockerContext: api-nest
+    healthCheckPath: /health
     envVars:
       - key: PORT
         value: 3000
@@ -10,25 +13,24 @@ services:
         fromDatabase:
           name: infotier-postgres
           property: connectionString
-      - key: USE_AWS_S3
-        value: "true"
-      - key: AWS_S3_ENDPOINT
-        value: s3.amazonaws.com
-      - key: AWS_S3_PORT
-        value: 443
-      - key: S3_BUCKET
-        value: infotier-prod-uploads-us-east-1-91cx
       - key: WEBHOOK_SECRET
         sync: false
   - type: web
     name: infotier-dashboard
-    env: static
+    runtime: static
+    plan: free
     staticPublishPath: dashboard/dist
-    buildCommand: "cd dashboard && npm install && npm run build"
+    buildCommand: "cd dashboard && npm ci && npm run build"
+    envVars:
+      - key: VITE_API_BASE
+        sync: false
   - type: web
     name: infotier-docs
-    env: static
+    runtime: static
+    plan: free
+    buildCommand: "echo 'Docs ready'"
     staticPublishPath: docs
 
 databases:
   - name: infotier-postgres
+    plan: free
