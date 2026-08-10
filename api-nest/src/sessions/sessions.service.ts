@@ -33,7 +33,7 @@ export class SessionsService {
           data: { verificationId: verification.id, action: 'provider_session_created', actor: 'infotier', meta: { provider: 'stripe' } },
         }),
       ]);
-      return { verificationId: verification.id, provider: 'stripe', url: session.url, expiresAt: session.expires_at };
+      return { verificationId: verification.id, provider: 'stripe', url: session.url };
     } catch (error) {
       await this.prisma.verification.update({ where: { id: verification.id }, data: { status: 'provider_error' } });
       throw new ServiceUnavailableException('The customer verification provider could not create a session');
