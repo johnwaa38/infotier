@@ -4,6 +4,8 @@ import axios from 'axios'
 const base = import.meta.env.VITE_API_BASE || 'http://localhost:3000/v1'
 
 export default function App(){
+  const adminMode = new URLSearchParams(location.search).has('admin')
+  const completed = new URLSearchParams(location.search).get('verification') === 'complete'
   const [token, setToken] = useState(() => sessionStorage.getItem('infotier_token') || '')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -11,6 +13,8 @@ export default function App(){
   const [selected, setSelected] = useState(null)
   const [logs, setLogs] = useState([])
   const api = useMemo(() => axios.create({ baseURL: base, headers: token ? { Authorization: `Bearer ${token}` } : {} }), [token])
+
+  if (!adminMode) return <PublicVerification completed={completed}/>
 
   function logout(){ sessionStorage.removeItem('infotier_token'); setToken(''); setItems([]); setSelected(null) }
   async function login(event){
@@ -73,7 +77,51 @@ export default function App(){
   </main>
 }
 
+function PublicVerification({completed}){
+  const [busy,setBusy]=useState(false)
+  const [error,setError]=useState('')
+  async function begin(e){
+    e.preventDefault(); setBusy(true); setError('')
+    try{
+      const ref = crypto.randomUUID()
+      const response = await axios.post(`${base}/sessions`,{
+        customerId:'infotier-public', userReference:ref,
+        returnUrl:`${location.origin}/?verification=complete`
+      })
+      if(!response.data?.url) throw new Error('Missing verification URL')
+      sessionStorage.setItem('infotier_verification_id',response.data.verificationId)
+      location.assign(response.data.url)
+    }catch{ setError('Verification could not start. Please try again.'); setBusy(false) }
+  }
+  return <main style={styles.publicPage}>
+    <header style={styles.publicHeader}><strong style={{fontSize:24}}>Infotier</strong><a href="/?admin=1" style={styles.adminLink}>Administrator</a></header>
+    <section style={styles.hero}>
+      <div style={styles.eyebrow}>SECURE IDENTITY VERIFICATION</div>
+      <h1 style={styles.heroTitle}>{completed?'Verification submitted':'Prove you are you.'}</h1>
+      <p style={styles.heroText}>{completed?'Your result is processing. You may safely close this page.':'Verify an identity using government ID, face match, passive liveness, and device-risk checks.'}</p>
+      {!completed&&<form onSubmit={begin} style={styles.verifyCard}>
+        <button disabled={busy} style={styles.verifyButton}>{busy?'Opening secure check…':'Start free verification →'}</button>
+        {error&&<p role="alert" style={styles.error}>{error}</p>}
+        <small style={styles.privacy}>Infotier stores the verification result and audit trail—not your ID images. Document capture is securely hosted by Didit.</small>
+      </form>}
+      <div style={styles.trustRow}><span>✓ Encrypted</span><span>✓ Liveness checked</span><span>✓ No card required</span></div>
+    </section>
+  </main>
+}
+
 const styles = {
+  publicPage:{minHeight:'100vh',background:'radial-gradient(circle at 80% 15%,#183d70 0,#07111f 42%,#03070d 100%)',color:'#f6fbff',fontFamily:'Inter,system-ui,sans-serif'},
+  publicHeader:{maxWidth:1100,margin:'auto',padding:'24px 28px',display:'flex',justifyContent:'space-between',alignItems:'center'},
+  adminLink:{color:'#9fb3c8',textDecoration:'none',fontSize:14},
+  hero:{maxWidth:760,margin:'clamp(50px,10vh,120px) auto 0',padding:'0 28px 70px',textAlign:'center'},
+  eyebrow:{color:'#53d4ff',fontWeight:800,letterSpacing:2,fontSize:13},
+  heroTitle:{fontSize:'clamp(42px,8vw,76px)',lineHeight:1,margin:'20px 0',letterSpacing:-3},
+  heroText:{color:'#b8c7d8',fontSize:'clamp(18px,2.3vw,23px)',lineHeight:1.5,maxWidth:680,margin:'0 auto 34px'},
+  verifyCard:{background:'#ffffff',color:'#142033',padding:24,borderRadius:18,textAlign:'left',maxWidth:480,margin:'auto',boxShadow:'0 24px 80px #0008'},
+  publicInput:{boxSizing:'border-box',width:'100%',fontSize:17,padding:'14px 15px',margin:'9px 0 12px',border:'1px solid #c8d2dd',borderRadius:9},
+  verifyButton:{width:'100%',background:'#1677ff',color:'#fff',border:0,borderRadius:9,padding:'15px 18px',fontWeight:800,fontSize:16,cursor:'pointer'},
+  privacy:{display:'block',color:'#647387',lineHeight:1.45,marginTop:14},
+  trustRow:{display:'flex',justifyContent:'center',gap:22,flexWrap:'wrap',color:'#8fa4bb',fontSize:14,marginTop:28},
   loginPage:{minHeight:'100vh',display:'grid',placeItems:'center',background:'#0b1020',fontFamily:'system-ui',color:'#e8eefc'},
   page:{minHeight:'100vh',padding:24,background:'#f4f6fa',fontFamily:'system-ui',color:'#172033'},
   header:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20},
