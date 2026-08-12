@@ -54,3 +54,12 @@ model CustomerConfig {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
+
+model WebhookEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique
+  webhookType String
+  sessionId   String?
+  status      String?
+  createdAt   DateTime @default(now())
+}
