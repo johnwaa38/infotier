@@ -84,8 +84,8 @@ function PublicVerification({completed}){
     e.preventDefault(); setBusy(true); setError('')
     try{
       const ref = crypto.randomUUID()
-      const response = await axios.post(`${base}/sessions`,{
-        customerId:'infotier-public', userReference:ref,
+      const response = await axios.post(`${base}/sessions/public`,{
+        userReference:ref,
         returnUrl:`${location.origin}/?verification=complete`
       })
       if(!response.data?.url) throw new Error('Missing verification URL')
