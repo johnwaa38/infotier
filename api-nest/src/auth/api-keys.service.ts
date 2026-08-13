@@ -39,5 +39,19 @@ export class ApiKeysService {
     return { sub: key.id, role: 'customer' as const, customerId: key.customerId };
   }
 
+  async usage(customerId: string) {
+    const [customer, total, completed, failed, recent] = await this.prisma.$transaction([
+      this.prisma.customer.findUnique({ where: { id: customerId }, select: { id: true, name: true, status: true, createdAt: true } }),
+      this.prisma.verification.count({ where: { customerId } }),
+      this.prisma.verification.count({ where: { customerId, status: { in: ['approved', 'declined', 'rejected'] } } }),
+      this.prisma.verification.count({ where: { customerId, status: 'provider_error' } }),
+      this.prisma.verification.findMany({ where: { customerId }, orderBy: { createdAt: 'desc' }, take: 25, select: { id: true, userReference: true, status: true, score: true, provider: true, createdAt: true, completedAt: true } }),
+    ]);
+    if (!customer) throw new NotFoundException('Customer not found');
+    const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
+    const thisMonth = await this.prisma.verification.count({ where: { customerId, createdAt: { gte: monthStart } } });
+    return { customer, totals: { all: total, thisMonth, completed, failed, inProgress: total - completed - failed }, recent };
+  }
+
   private hash(value: string) { return createHash('sha256').update(value).digest('hex'); }
 }
