@@ -5,6 +5,11 @@ import { Public } from '../auth/public.decorator';
 @Controller('v1/sessions')
 export class SessionsController {
   constructor(private svc: SessionsService) {}
+  @Public()
+  @Post('public')
+  createPublic(@Body() body: { userReference?: string; returnUrl?: string }) {
+    return this.svc.createSession({ ...body, customerId: 'infotier-public' });
+  }
   @Post()
   create(@Req() req: any, @Body() body: { customerId?: string; userReference?: string; returnUrl?: string }) {
     const customerId = req.user?.role === 'customer' ? req.user.customerId : body?.customerId;
