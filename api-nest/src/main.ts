@@ -6,7 +6,7 @@ async function bootstrap(){
   app.enableCors({
     origin: (process.env.DASHBOARD_ORIGIN || '').split(',').map(v => v.trim()).filter(Boolean),
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
   });
   app.use((req: any, res: any, next: any) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
