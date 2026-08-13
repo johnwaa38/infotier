@@ -5,6 +5,7 @@ const base = import.meta.env.VITE_API_BASE || 'http://localhost:3000/v1'
 
 export default function App(){
   const adminMode = new URLSearchParams(location.search).has('admin')
+  const customerMode = new URLSearchParams(location.search).has('customer')
   const completed = new URLSearchParams(location.search).get('verification') === 'complete'
   const [token, setToken] = useState(() => sessionStorage.getItem('infotier_token') || '')
   const [password, setPassword] = useState('')
@@ -14,6 +15,7 @@ export default function App(){
   const [logs, setLogs] = useState([])
   const api = useMemo(() => axios.create({ baseURL: base, headers: token ? { Authorization: `Bearer ${token}` } : {} }), [token])
 
+  if (customerMode) return <CustomerPortal/>
   if (!adminMode) return <PublicVerification completed={completed}/>
 
   function logout(){ sessionStorage.removeItem('infotier_token'); setToken(''); setItems([]); setSelected(null) }
@@ -77,6 +79,31 @@ export default function App(){
   </main>
 }
 
+function CustomerPortal(){
+  const [key,setKey]=useState(()=>sessionStorage.getItem('infotier_customer_key')||'')
+  const [usage,setUsage]=useState(null)
+  const [error,setError]=useState('')
+  async function load(event){
+    event?.preventDefault(); setError('')
+    try{
+      const response=await axios.get(`${base}/customer/usage`,{headers:{'X-API-Key':key}})
+      sessionStorage.setItem('infotier_customer_key',key); setUsage(response.data)
+    }catch{setError('That API key is invalid or revoked.');setUsage(null)}
+  }
+  function logout(){sessionStorage.removeItem('infotier_customer_key');setKey('');setUsage(null)}
+  useEffect(()=>{if(key)load()},[])
+  if(!usage)return <main style={styles.loginPage}><form onSubmit={load} style={styles.card}>
+    <h1 style={{marginTop:0}}>Customer portal</h1><p>Enter your Infotier API key.</p>
+    <input type="password" value={key} onChange={e=>setKey(e.target.value)} required style={styles.input}/>
+    <button style={styles.primary}>View usage</button>{error&&<p style={styles.error}>{error}</p>}
+  </form></main>
+  const t=usage.totals
+  return <main style={styles.page}><header style={styles.header}><div><h1 style={{margin:0}}>{usage.customer.name}</h1><small>Infotier customer portal</small></div><button onClick={logout}>Sign out</button></header>
+    <div style={styles.metrics}>{[['All',t.all],['This month',t.thisMonth],['Completed',t.completed],['In progress',t.inProgress],['Failed',t.failed]].map(([label,value])=><section style={styles.metric} key={label}><strong>{value}</strong><span>{label}</span></section>)}</div>
+    <section style={styles.card}><h2>Recent verifications</h2>{usage.recent.length===0?<p>No usage yet.</p>:<table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr><th style={styles.th}>Reference</th><th style={styles.th}>Status</th><th style={styles.th}>Provider</th><th style={styles.th}>Created</th></tr></thead><tbody>{usage.recent.map(r=><tr key={r.id}><td style={styles.td}>{r.userReference}</td><td style={styles.td}>{r.status}</td><td style={styles.td}>{r.provider||'-'}</td><td style={styles.td}>{new Date(r.createdAt).toLocaleString()}</td></tr>)}</tbody></table>}</section>
+  </main>
+}
+
 function PublicVerification({completed}){
   const [busy,setBusy]=useState(false)
   const [error,setError]=useState('')
@@ -94,7 +121,7 @@ function PublicVerification({completed}){
     }catch{ setError('Verification could not start. Please try again.'); setBusy(false) }
   }
   return <main style={styles.publicPage}>
-    <header style={styles.publicHeader}><strong style={{fontSize:24}}>Infotier</strong><a href="/?admin=1" style={styles.adminLink}>Administrator</a></header>
+    <header style={styles.publicHeader}><strong style={{fontSize:24}}>Infotier</strong><div style={{display:'flex',gap:18}}><a href="/?customer=1" style={styles.adminLink}>Customer portal</a><a href="/?admin=1" style={styles.adminLink}>Administrator</a></div></header>
     <section style={styles.hero}>
       <div style={styles.eyebrow}>SECURE IDENTITY VERIFICATION</div>
       <h1 style={styles.heroTitle}>{completed?'Verification submitted':'Prove you are you.'}</h1>
@@ -126,6 +153,8 @@ const styles = {
   page:{minHeight:'100vh',padding:24,background:'#f4f6fa',fontFamily:'system-ui',color:'#172033'},
   header:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20},
   grid:{display:'grid',gridTemplateColumns:'minmax(0,1.2fr) minmax(0,1fr)',gap:20},
+  metrics:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:14,marginBottom:20},
+  metric:{background:'#fff',padding:20,borderRadius:12,boxShadow:'0 8px 30px #0001',display:'flex',flexDirection:'column',gap:4},
   card:{background:'#fff',color:'#172033',padding:24,borderRadius:12,boxShadow:'0 8px 30px #0001',minWidth:300},
   input:{display:'block',boxSizing:'border-box',width:'100%',padding:10,margin:'8px 0 14px',border:'1px solid #b9c2d0',borderRadius:6},
   primary:{background:'#2356d8',color:'#fff',border:0,borderRadius:6,padding:'10px 16px'},
