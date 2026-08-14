@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
 
-type TokenPayload = { sub: string; role: 'admin' | 'customer'; customerId?: string; exp: number };
+type TokenPayload = { sub: string; role: 'admin' | 'customer'; customerId?: string; customerRole?: string; exp: number };
 
 @Injectable()
 export class AuthService {
@@ -21,8 +21,8 @@ export class AuthService {
     return { accessToken: `${encoded}.${this.sign(encoded)}`, expiresIn: 28800 };
   }
 
-  customerSession(customerId: string) {
-    const payload: TokenPayload = { sub: customerId, role: 'customer', customerId, exp: Math.floor(Date.now() / 1000) + 28800 };
+  customerSession(customerId: string, customerRole = 'customer') {
+    const payload: TokenPayload = { sub: customerId, role: 'customer', customerId, customerRole, exp: Math.floor(Date.now() / 1000) + 28800 };
     const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
     return { accessToken: `${encoded}.${this.sign(encoded)}`, expiresIn: 28800 };
   }
