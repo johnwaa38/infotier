@@ -81,17 +81,29 @@ export default function App(){
 
 function CustomerPortal(){
   const [key,setKey]=useState(()=>sessionStorage.getItem('infotier_customer_key')||'')
+  const [portalToken,setPortalToken]=useState(()=>sessionStorage.getItem('infotier_customer_token')||'')
   const [usage,setUsage]=useState(null)
   const [error,setError]=useState('')
   async function load(event){
     event?.preventDefault(); setError('')
     try{
-      const response=await axios.get(`${base}/customer/usage`,{headers:{'X-API-Key':key}})
+      const headers=portalToken?{Authorization:`Bearer ${portalToken}`}:{'X-API-Key':key}
+      const response=await axios.get(`${base}/customer/usage`,{headers})
       sessionStorage.setItem('infotier_customer_key',key); setUsage(response.data)
     }catch{setError('That API key is invalid or revoked.');setUsage(null)}
   }
-  function logout(){sessionStorage.removeItem('infotier_customer_key');setKey('');setUsage(null)}
-  useEffect(()=>{if(key)load()},[])
+  function logout(){sessionStorage.removeItem('infotier_customer_key');sessionStorage.removeItem('infotier_customer_token');setKey('');setPortalToken('');setUsage(null)}
+  useEffect(()=>{
+    const login=new URLSearchParams(location.search).get('login')
+    if(login){
+      history.replaceState({},'',`${location.pathname}?customer=1`)
+      axios.post(`${base}/customer/magic-login`,{token:login}).then(response=>{
+        sessionStorage.setItem('infotier_customer_token',response.data.accessToken)
+        setPortalToken(response.data.accessToken)
+      }).catch(()=>setError('This login link is invalid or expired.'))
+    }
+  },[])
+  useEffect(()=>{if(portalToken||key)load()},[portalToken])
   if(!usage)return <main style={styles.loginPage}><form onSubmit={load} style={styles.card}>
     <h1 style={{marginTop:0}}>Customer portal</h1><p>Enter your Infotier API key.</p>
     <input type="password" value={key} onChange={e=>setKey(e.target.value)} required style={styles.input}/>
