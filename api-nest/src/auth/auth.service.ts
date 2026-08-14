@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
 
-type TokenPayload = { sub: string; role: 'admin'; exp: number };
+type TokenPayload = { sub: string; role: 'admin' | 'customer'; customerId?: string; exp: number };
 
 @Injectable()
 export class AuthService {
@@ -21,6 +21,12 @@ export class AuthService {
     return { accessToken: `${encoded}.${this.sign(encoded)}`, expiresIn: 28800 };
   }
 
+  customerSession(customerId: string) {
+    const payload: TokenPayload = { sub: customerId, role: 'customer', customerId, exp: Math.floor(Date.now() / 1000) + 28800 };
+    const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    return { accessToken: `${encoded}.${this.sign(encoded)}`, expiresIn: 28800 };
+  }
+
   verify(token: string): TokenPayload {
     const [encoded, signature, extra] = token.split('.');
     if (!encoded || !signature || extra || !this.safeEqual(signature, this.sign(encoded))) {
@@ -28,7 +34,7 @@ export class AuthService {
     }
     try {
       const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as TokenPayload;
-      if (payload.role !== 'admin' || payload.exp <= Math.floor(Date.now() / 1000)) throw new Error('expired');
+      if (!['admin', 'customer'].includes(payload.role) || payload.exp <= Math.floor(Date.now() / 1000)) throw new Error('expired');
       return payload;
     } catch {
       throw new UnauthorizedException('Invalid or expired token');
