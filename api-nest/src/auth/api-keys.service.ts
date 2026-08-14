@@ -65,5 +65,49 @@ export class ApiKeysService {
     });
   }
 
+  async requestSignup(input: { businessName?: unknown; contactName?: unknown; email?: unknown }) {
+    const businessName = this.requiredText(input?.businessName, 'Business name', 100);
+    const contactName = this.requiredText(input?.contactName, 'Contact name', 100);
+    if (typeof input?.email !== 'string' || input.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) {
+      throw new BadRequestException('A valid email is required');
+    }
+    const email = input.email.trim().toLowerCase();
+    await this.prisma.signupRequest.upsert({
+      where: { email },
+      create: { businessName, contactName, email },
+      update: { businessName, contactName, status: 'pending', reviewedAt: null },
+    });
+    return { accepted: true };
+  }
+
+  listSignupRequests() {
+    return this.prisma.signupRequest.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
+  }
+
+  async approveSignup(id: string) {
+    const request = await this.prisma.signupRequest.findUnique({ where: { id } });
+    if (!request) throw new NotFoundException('Signup request not found');
+    if (request.status === 'approved') throw new BadRequestException('Signup request is already approved');
+    const rawToken = randomBytes(32).toString('hex');
+    const result = await this.prisma.$transaction(async prisma => {
+      const customer = await prisma.customer.create({ data: { name: request.businessName } });
+      await prisma.portalLoginToken.create({ data: { customerId: customer.id, tokenHash: this.hash(rawToken), expiresAt: new Date(Date.now() + 7 * 86400000) } });
+      await prisma.signupRequest.update({ where: { id }, data: { status: 'approved', customerId: customer.id, reviewedAt: new Date() } });
+      return customer;
+    });
+    const dashboard = (process.env.DASHBOARD_ORIGIN || 'https://infotier-dashboard.onrender.com').replace(/\/$/, '');
+    return { customer: result, portalInviteUrl: `${dashboard}/?customer=1&login=${rawToken}`, expiresInDays: 7 };
+  }
+
+  async declineSignup(id: string) {
+    const request = await this.prisma.signupRequest.findUnique({ where: { id } });
+    if (!request) throw new NotFoundException('Signup request not found');
+    return this.prisma.signupRequest.update({ where: { id }, data: { status: 'declined', reviewedAt: new Date() } });
+  }
+
   private hash(value: string) { return createHash('sha256').update(value).digest('hex'); }
+  private requiredText(value: unknown, label: string, max: number) {
+    if (typeof value !== 'string' || value.trim().length < 2 || value.trim().length > max) throw new BadRequestException(`${label} is required`);
+    return value.trim();
+  }
 }
