@@ -1,10 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash, randomBytes } from 'crypto';
+import { AuthService } from './auth.service';
 import { PrismaService } from '../common/prisma.service';
 
 @Injectable()
 export class ApiKeysService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private auth: AuthService) {}
 
   async createCustomer(name: unknown) {
     if (typeof name !== 'string' || name.trim().length < 2) throw new BadRequestException('Customer name is required');
@@ -51,6 +52,17 @@ export class ApiKeysService {
     const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
     const thisMonth = await this.prisma.verification.count({ where: { customerId, createdAt: { gte: monthStart } } });
     return { customer, totals: { all: total, thisMonth, completed, failed, inProgress: total - completed - failed }, recent };
+  }
+
+  async redeemPortalLogin(token: unknown) {
+    if (typeof token !== 'string' || token.length < 32) throw new BadRequestException('Invalid login link');
+    const tokenHash = this.hash(token);
+    return this.prisma.$transaction(async prisma => {
+      const record = await prisma.portalLoginToken.findUnique({ where: { tokenHash } });
+      if (!record || record.usedAt || record.expiresAt <= new Date()) throw new BadRequestException('Login link is invalid or expired');
+      await prisma.portalLoginToken.update({ where: { id: record.id }, data: { usedAt: new Date() } });
+      return this.auth.customerSession(record.customerId);
+    });
   }
 
   private hash(value: string) { return createHash('sha256').update(value).digest('hex'); }

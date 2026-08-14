@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Req, ForbiddenException } from '@nestjs/common';
 import { ApiKeysService } from './api-keys.service';
 import { AdminOnly } from './admin-only.decorator';
+import { Public } from './public.decorator';
 
 @AdminOnly()
 @Controller('v1/customers')
@@ -17,7 +18,10 @@ export class CustomerPortalController {
   constructor(private keys: ApiKeysService) {}
   @Get('usage')
   usage(@Req() req: any) {
-    if (req.user?.role !== 'customer') throw new ForbiddenException('Customer API key required');
+    if (req.user?.role !== 'customer') throw new ForbiddenException('Customer authentication required');
     return this.keys.usage(req.user.customerId);
   }
+  @Public()
+  @Post('magic-login')
+  magicLogin(@Body() body: { token?: string }) { return this.keys.redeemPortalLogin(body?.token); }
 }
