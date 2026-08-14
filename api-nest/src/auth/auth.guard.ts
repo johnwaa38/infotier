@@ -14,6 +14,8 @@ export class AuthGuard implements CanActivate {
     const header = request.headers.authorization;
     if (typeof header === 'string' && header.startsWith('Bearer ')) {
       request.user = this.auth.verify(header.slice(7));
+      const adminOnly = this.reflector.getAllAndOverride<boolean>(ADMIN_ONLY_KEY, [context.getHandler(), context.getClass()]);
+      if (adminOnly && request.user.role !== 'admin') throw new UnauthorizedException('Administrator authentication required');
       return true;
     }
     const apiKey = request.headers['x-api-key'];
