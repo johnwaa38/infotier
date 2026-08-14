@@ -6,6 +6,7 @@ const base = import.meta.env.VITE_API_BASE || 'http://localhost:3000/v1'
 export default function App(){
   const adminMode = new URLSearchParams(location.search).has('admin')
   const customerMode = new URLSearchParams(location.search).has('customer')
+  const signupMode = new URLSearchParams(location.search).has('signup')
   const completed = new URLSearchParams(location.search).get('verification') === 'complete'
   const [token, setToken] = useState(() => sessionStorage.getItem('infotier_token') || '')
   const [password, setPassword] = useState('')
@@ -13,9 +14,12 @@ export default function App(){
   const [items, setItems] = useState([])
   const [selected, setSelected] = useState(null)
   const [logs, setLogs] = useState([])
+  const [signupRequests, setSignupRequests] = useState([])
+  const [inviteLink, setInviteLink] = useState('')
   const api = useMemo(() => axios.create({ baseURL: base, headers: token ? { Authorization: `Bearer ${token}` } : {} }), [token])
 
   if (customerMode) return <CustomerPortal/>
+  if (signupMode) return <BetaSignup/>
   if (!adminMode) return <PublicVerification completed={completed}/>
 
   function logout(){ sessionStorage.removeItem('infotier_token'); setToken(''); setItems([]); setSelected(null) }
@@ -28,7 +32,7 @@ export default function App(){
     } catch { setError('Login failed') }
   }
   async function refresh(){
-    try { const r = await api.get('/verifications'); setItems(r.data); setError('') }
+    try { const [r,s] = await Promise.all([api.get('/verifications'),api.get('/signup-requests')]); setItems(r.data);setSignupRequests(s.data);setError('') }
     catch (e) { if (e.response?.status === 401) logout(); else setError('Could not load verifications') }
   }
   async function openItem(id){
@@ -41,6 +45,13 @@ export default function App(){
     if (!selected) return
     try { await api.post(`/verifications/${selected.id}/decision`, { action }); await openItem(selected.id); await refresh() }
     catch { setError('Decision could not be saved') }
+  }
+  async function reviewSignup(id,action){
+    try{
+      const response=await api.post(`/signup-requests/${id}/${action}`)
+      if(action==='approve')setInviteLink(response.data.portalInviteUrl)
+      await refresh()
+    }catch{setError(`Could not ${action} signup request`)}
   }
   useEffect(()=>{ if (!token) return; refresh(); const t=setInterval(refresh,10000); return ()=>clearInterval(t) },[token])
 
@@ -60,6 +71,11 @@ export default function App(){
     {error && <p role="alert" style={styles.error}>{error}</p>}
     <div style={styles.grid}>
       <section style={styles.card}>
+        <h2>Beta signup requests</h2>
+        {inviteLink&&<div style={styles.linkBox}><strong>Customer invite ready</strong><a href={inviteLink} target="_blank" rel="noreferrer">{inviteLink}</a><button onClick={()=>navigator.clipboard.writeText(inviteLink)}>Copy invite</button></div>}
+        {signupRequests.length===0?<p>No signup requests yet.</p>:signupRequests.map(r=><div key={r.id} style={styles.requestRow}><div><strong>{r.businessName}</strong><br/><span>{r.contactName} — {r.email}</span><br/><small>{r.status}</small></div>{r.status==='pending'&&<div style={{display:'flex',gap:8}}><button style={styles.primary} onClick={()=>reviewSignup(r.id,'approve')}>Approve</button><button onClick={()=>reviewSignup(r.id,'decline')}>Decline</button></div>}</div>)}
+      </section>
+      <section style={styles.card}>
         <h2>Verifications</h2>
         {items.length === 0 ? <p>No verification records yet.</p> : <table style={{width:'100%', borderCollapse:'collapse'}}>
           <thead><tr><th style={styles.th}>ID</th><th style={styles.th}>Status</th><th style={styles.th}>Score</th><th style={styles.th}>Created</th></tr></thead>
@@ -77,6 +93,19 @@ export default function App(){
       </section>
     </div>
   </main>
+}
+
+function BetaSignup(){
+  const [form,setForm]=useState({businessName:'',contactName:'',email:''})
+  const [submitted,setSubmitted]=useState(false)
+  const [error,setError]=useState('')
+  async function submit(e){
+    e.preventDefault();setError('')
+    try{await axios.post(`${base}/signup-requests`,form);setSubmitted(true)}
+    catch{setError('Could not submit your request. Check each field and try again.')}
+  }
+  if(submitted)return <main style={styles.loginPage}><section style={styles.card}><h1>Request received</h1><p>Infotier will review your free beta request and provide a secure portal invitation.</p><a href="/">Return home</a></section></main>
+  return <main style={styles.loginPage}><form onSubmit={submit} style={styles.card}><h1 style={{marginTop:0}}>Join the Infotier beta</h1><p>Request free early access. No card required.</p><label>Business name</label><input style={styles.input} required maxLength={100} value={form.businessName} onChange={e=>setForm({...form,businessName:e.target.value})}/><label>Your name</label><input style={styles.input} required maxLength={100} value={form.contactName} onChange={e=>setForm({...form,contactName:e.target.value})}/><label>Email</label><input style={styles.input} required type="email" maxLength={254} value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/><button style={styles.primary}>Request access</button>{error&&<p style={styles.error}>{error}</p>}</form></main>
 }
 
 function CustomerPortal(){
@@ -150,7 +179,7 @@ function PublicVerification({completed}){
     }catch{ setError('Verification could not start. Please try again.'); setBusy(false) }
   }
   return <main style={styles.publicPage}>
-    <header style={styles.publicHeader}><strong style={{fontSize:24}}>Infotier</strong><div style={{display:'flex',gap:18}}><a href="/?customer=1" style={styles.adminLink}>Customer portal</a><a href="/?admin=1" style={styles.adminLink}>Administrator</a></div></header>
+    <header style={styles.publicHeader}><strong style={{fontSize:24}}>Infotier</strong><div style={{display:'flex',gap:18}}><a href="/?signup=1" style={styles.adminLink}>Free beta</a><a href="/?customer=1" style={styles.adminLink}>Customer portal</a><a href="/?admin=1" style={styles.adminLink}>Administrator</a></div></header>
     <section style={styles.hero}>
       <div style={styles.eyebrow}>SECURE IDENTITY VERIFICATION</div>
       <h1 style={styles.heroTitle}>{completed?'Verification submitted':'Prove you are you.'}</h1>
@@ -189,6 +218,7 @@ const styles = {
   primary:{background:'#2356d8',color:'#fff',border:0,borderRadius:6,padding:'10px 16px'},
   error:{background:'#ffe5e5',color:'#8b1111',padding:10,borderRadius:6},
   linkBox:{display:'grid',gap:10,marginTop:16,padding:14,background:'#eef6ff',border:'1px solid #b9d7ff',borderRadius:8},
+  requestRow:{display:'flex',justifyContent:'space-between',gap:16,alignItems:'center',padding:'14px 0',borderBottom:'1px solid #e4e8ef'},
   th:{textAlign:'left',borderBottom:'2px solid #dbe1ea',padding:8}, td:{borderBottom:'1px solid #e4e8ef',padding:8},
   pre:{whiteSpace:'pre-wrap',overflowWrap:'anywhere',background:'#111827',color:'#d1fae5',padding:12,borderRadius:8}
 }
