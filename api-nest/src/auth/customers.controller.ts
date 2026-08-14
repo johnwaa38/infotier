@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Param, Post, Req, ForbiddenException } from '@nestjs/common';
 import { ApiKeysService } from './api-keys.service';
+import { AdminOnly } from './admin-only.decorator';
 
+@AdminOnly()
 @Controller('v1/customers')
 export class CustomersController {
   constructor(private keys: ApiKeysService) {}
