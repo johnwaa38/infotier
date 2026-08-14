@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { AuthService } from './auth.service';
 import { IS_PUBLIC_KEY } from './public.decorator';
 import { ApiKeysService } from './api-keys.service';
+import { ADMIN_ONLY_KEY } from './admin-only.decorator';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -18,7 +19,11 @@ export class AuthGuard implements CanActivate {
     const apiKey = request.headers['x-api-key'];
     if (typeof apiKey === 'string') {
       const principal = await this.apiKeys.authenticate(apiKey);
-      if (principal) { request.user = principal; return true; }
+      if (principal) {
+        const adminOnly = this.reflector.getAllAndOverride<boolean>(ADMIN_ONLY_KEY, [context.getHandler(), context.getClass()]);
+        if (adminOnly) throw new UnauthorizedException('Administrator authentication required');
+        request.user = principal; return true;
+      }
     }
     throw new UnauthorizedException('Authentication required');
   }
