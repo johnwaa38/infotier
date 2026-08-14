@@ -47,6 +47,19 @@ model PortalLoginToken {
   @@index([expiresAt])
 }
 
+model SignupRequest {
+  id           String    @id @default(uuid())
+  businessName String
+  contactName  String
+  email        String    @unique
+  status       String    @default("pending")
+  customerId   String?
+  createdAt    DateTime  @default(now())
+  reviewedAt   DateTime?
+
+  @@index([status, createdAt])
+}
+
 model ApiKey {
   id         String    @id @default(uuid())
   customerId String
