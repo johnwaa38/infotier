@@ -28,6 +28,7 @@ model Customer {
   id        String   @id @default(uuid())
   name      String
   status    String   @default("active")
+  role      String   @default("customer")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   apiKeys   ApiKey[]

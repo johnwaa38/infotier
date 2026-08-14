@@ -37,12 +37,12 @@ export class ApiKeysService {
     const key = await this.prisma.apiKey.findUnique({ where: { keyHash: this.hash(secret) }, include: { customer: true } });
     if (!key || key.revokedAt || key.customer.status !== 'active') return null;
     await this.prisma.apiKey.update({ where: { id: key.id }, data: { lastUsedAt: new Date() } });
-    return { sub: key.id, role: 'customer' as const, customerId: key.customerId };
+    return { sub: key.id, role: 'customer' as const, customerId: key.customerId, customerRole: key.customer.role };
   }
 
   async usage(customerId: string) {
     const [customer, total, completed, failed, recent] = await this.prisma.$transaction([
-      this.prisma.customer.findUnique({ where: { id: customerId }, select: { id: true, name: true, status: true, createdAt: true } }),
+      this.prisma.customer.findUnique({ where: { id: customerId }, select: { id: true, name: true, status: true, role: true, createdAt: true } }),
       this.prisma.verification.count({ where: { customerId } }),
       this.prisma.verification.count({ where: { customerId, status: { in: ['approved', 'declined', 'rejected'] } } }),
       this.prisma.verification.count({ where: { customerId, status: 'provider_error' } }),
@@ -61,7 +61,9 @@ export class ApiKeysService {
       const record = await prisma.portalLoginToken.findUnique({ where: { tokenHash } });
       if (!record || record.usedAt || record.expiresAt <= new Date()) throw new BadRequestException('Login link is invalid or expired');
       await prisma.portalLoginToken.update({ where: { id: record.id }, data: { usedAt: new Date() } });
-      return this.auth.customerSession(record.customerId);
+      const customer = await prisma.customer.findUnique({ where: { id: record.customerId }, select: { role: true } });
+      if (!customer) throw new BadRequestException('Customer no longer exists');
+      return this.auth.customerSession(record.customerId, customer.role);
     });
   }
 

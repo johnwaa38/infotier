@@ -115,12 +115,18 @@ function CustomerPortal(){
   const [error,setError]=useState('')
   const [creating,setCreating]=useState(false)
   const [verificationUrl,setVerificationUrl]=useState('')
+  const [ownerRequests,setOwnerRequests]=useState([])
+  const [ownerInvite,setOwnerInvite]=useState('')
   const authHeaders=()=>portalToken?{Authorization:`Bearer ${portalToken}`}:{'X-API-Key':key}
   async function load(event){
     event?.preventDefault(); setError('')
     try{
       const response=await axios.get(`${base}/customer/usage`,{headers:authHeaders()})
       sessionStorage.setItem('infotier_customer_key',key); setUsage(response.data)
+      if(response.data.customer.role==='owner'){
+        const requests=await axios.get(`${base}/owner/signup-requests`,{headers:authHeaders()})
+        setOwnerRequests(requests.data)
+      }
     }catch{setError('That API key is invalid or revoked.');setUsage(null)}
   }
   function logout(){sessionStorage.removeItem('infotier_customer_key');sessionStorage.removeItem('infotier_customer_token');setKey('');setPortalToken('');setUsage(null)}
@@ -135,6 +141,14 @@ function CustomerPortal(){
       await load()
     }catch{setError('Could not create a verification link.')}
     finally{setCreating(false)}
+  }
+  async function reviewOwnerRequest(id,action){
+    setError('');setOwnerInvite('')
+    try{
+      const response=await axios.post(`${base}/owner/signup-requests/${id}/${action}`,{},{headers:authHeaders()})
+      if(action==='approve')setOwnerInvite(response.data.portalInviteUrl)
+      await load()
+    }catch{setError(`Could not ${action} signup request.`)}
   }
   useEffect(()=>{
     const login=new URLSearchParams(location.search).get('login')
@@ -154,6 +168,10 @@ function CustomerPortal(){
   </form></main>
   const t=usage.totals
   return <main style={styles.page}><header style={styles.header}><div><h1 style={{margin:0}}>{usage.customer.name}</h1><small>Infotier customer portal</small></div><button onClick={logout}>Sign out</button></header>
+    {usage.customer.role==='owner'&&<section style={{...styles.card,marginBottom:20}}><h2 style={{marginTop:0}}>Beta customer requests</h2>
+      {ownerInvite&&<div style={styles.linkBox}><strong>Approved — customer invite ready</strong><a href={ownerInvite} target="_blank" rel="noreferrer">{ownerInvite}</a><button onClick={()=>navigator.clipboard.writeText(ownerInvite)}>Copy invite</button></div>}
+      {ownerRequests.length===0?<p>No requests yet.</p>:ownerRequests.map(r=><div key={r.id} style={styles.requestRow}><div><strong>{r.businessName}</strong><br/><span>{r.contactName} — {r.email}</span><br/><small>{r.status}</small></div>{r.status==='pending'&&<div style={{display:'flex',gap:8}}><button style={styles.primary} onClick={()=>reviewOwnerRequest(r.id,'approve')}>Approve</button><button onClick={()=>reviewOwnerRequest(r.id,'decline')}>Decline</button></div>}</div>)}
+    </section>}
     <section style={{...styles.card,marginBottom:20}}><h2 style={{marginTop:0}}>Verify someone</h2><p>Create a secure identity-check link and send it to the person being verified.</p><button onClick={createVerification} disabled={creating} style={styles.primary}>{creating?'Creating…':'Create verification link'}</button>
       {verificationUrl&&<div style={styles.linkBox}><strong>Link ready</strong><a href={verificationUrl} target="_blank" rel="noreferrer" style={{overflowWrap:'anywhere'}}>{verificationUrl}</a><button onClick={()=>navigator.clipboard.writeText(verificationUrl)}>Copy link</button></div>}
     </section>
