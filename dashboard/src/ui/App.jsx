@@ -84,15 +84,29 @@ function CustomerPortal(){
   const [portalToken,setPortalToken]=useState(()=>sessionStorage.getItem('infotier_customer_token')||'')
   const [usage,setUsage]=useState(null)
   const [error,setError]=useState('')
+  const [creating,setCreating]=useState(false)
+  const [verificationUrl,setVerificationUrl]=useState('')
+  const authHeaders=()=>portalToken?{Authorization:`Bearer ${portalToken}`}:{'X-API-Key':key}
   async function load(event){
     event?.preventDefault(); setError('')
     try{
-      const headers=portalToken?{Authorization:`Bearer ${portalToken}`}:{'X-API-Key':key}
-      const response=await axios.get(`${base}/customer/usage`,{headers})
+      const response=await axios.get(`${base}/customer/usage`,{headers:authHeaders()})
       sessionStorage.setItem('infotier_customer_key',key); setUsage(response.data)
     }catch{setError('That API key is invalid or revoked.');setUsage(null)}
   }
   function logout(){sessionStorage.removeItem('infotier_customer_key');sessionStorage.removeItem('infotier_customer_token');setKey('');setPortalToken('');setUsage(null)}
+  async function createVerification(){
+    setCreating(true);setError('');setVerificationUrl('')
+    try{
+      const response=await axios.post(`${base}/sessions`,{
+        userReference:`customer-${crypto.randomUUID()}`,
+        returnUrl:`${location.origin}/?verification=complete`
+      },{headers:authHeaders()})
+      setVerificationUrl(response.data.url)
+      await load()
+    }catch{setError('Could not create a verification link.')}
+    finally{setCreating(false)}
+  }
   useEffect(()=>{
     const login=new URLSearchParams(location.search).get('login')
     if(login){
@@ -111,6 +125,9 @@ function CustomerPortal(){
   </form></main>
   const t=usage.totals
   return <main style={styles.page}><header style={styles.header}><div><h1 style={{margin:0}}>{usage.customer.name}</h1><small>Infotier customer portal</small></div><button onClick={logout}>Sign out</button></header>
+    <section style={{...styles.card,marginBottom:20}}><h2 style={{marginTop:0}}>Verify someone</h2><p>Create a secure identity-check link and send it to the person being verified.</p><button onClick={createVerification} disabled={creating} style={styles.primary}>{creating?'Creating…':'Create verification link'}</button>
+      {verificationUrl&&<div style={styles.linkBox}><strong>Link ready</strong><a href={verificationUrl} target="_blank" rel="noreferrer" style={{overflowWrap:'anywhere'}}>{verificationUrl}</a><button onClick={()=>navigator.clipboard.writeText(verificationUrl)}>Copy link</button></div>}
+    </section>
     <div style={styles.metrics}>{[['All',t.all],['This month',t.thisMonth],['Completed',t.completed],['In progress',t.inProgress],['Failed',t.failed]].map(([label,value])=><section style={styles.metric} key={label}><strong>{value}</strong><span>{label}</span></section>)}</div>
     <section style={styles.card}><h2>Recent verifications</h2>{usage.recent.length===0?<p>No usage yet.</p>:<table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr><th style={styles.th}>Reference</th><th style={styles.th}>Status</th><th style={styles.th}>Provider</th><th style={styles.th}>Created</th></tr></thead><tbody>{usage.recent.map(r=><tr key={r.id}><td style={styles.td}>{r.userReference}</td><td style={styles.td}>{r.status}</td><td style={styles.td}>{r.provider||'-'}</td><td style={styles.td}>{new Date(r.createdAt).toLocaleString()}</td></tr>)}</tbody></table>}</section>
   </main>
@@ -171,6 +188,7 @@ const styles = {
   input:{display:'block',boxSizing:'border-box',width:'100%',padding:10,margin:'8px 0 14px',border:'1px solid #b9c2d0',borderRadius:6},
   primary:{background:'#2356d8',color:'#fff',border:0,borderRadius:6,padding:'10px 16px'},
   error:{background:'#ffe5e5',color:'#8b1111',padding:10,borderRadius:6},
+  linkBox:{display:'grid',gap:10,marginTop:16,padding:14,background:'#eef6ff',border:'1px solid #b9d7ff',borderRadius:8},
   th:{textAlign:'left',borderBottom:'2px solid #dbe1ea',padding:8}, td:{borderBottom:'1px solid #e4e8ef',padding:8},
   pre:{whiteSpace:'pre-wrap',overflowWrap:'anywhere',background:'#111827',color:'#d1fae5',padding:12,borderRadius:8}
 }
