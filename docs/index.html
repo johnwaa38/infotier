@@ -1,1 +1,24 @@
-<!doctype html><html><head><meta charset='utf-8'/><title>Infotier Docs</title><script src='https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js'></script></head><body><redoc spec-url='openapi.yaml'></redoc></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Infotier API Documentation</title>
+  <style>
+    :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#07111f;color:#eaf5ff;font:16px/1.55 system-ui,sans-serif}main{max-width:920px;margin:auto;padding:56px 24px 80px}h1{font-size:clamp(42px,8vw,72px);line-height:1;margin:.15em 0}h2{margin-top:42px;color:#68dcff}p,li{color:#b9c9d8}.tag{color:#53d4ff;font-weight:800;letter-spacing:.12em}.card{background:#0d1c2d;border:1px solid #1c3a55;border-radius:14px;padding:20px;margin:16px 0}code{background:#05101b;color:#8fffc1;padding:3px 6px;border-radius:5px}a{color:#68dcff}.method{display:inline-block;background:#126b47;color:#fff;padding:3px 8px;border-radius:5px;font-weight:800;margin-right:8px}.warn{border-left:4px solid #ffc857;padding-left:14px}
+  </style>
+</head>
+<body><main>
+  <div class="tag">INFOTIER · API</div>
+  <h1>Identity verification infrastructure.</h1>
+  <p>Infotier creates hosted verification sessions, records provider outcomes, and exposes customer and administrator workflows without storing identity-document images.</p>
+  <div class="card"><strong>Production API</strong><br><code>https://infotier-api.onrender.com/v1</code><p><a href="https://infotier-api.onrender.com/health">Check service health</a> · <a href="openapi.yaml">Download OpenAPI specification</a></p></div>
+  <h2>Core endpoints</h2>
+  <div class="card"><span class="method">POST</span><code>/sessions</code><p>Create a verification session using an <code>X-API-Key</code> header.</p></div>
+  <div class="card"><span class="method">POST</span><code>/sessions/public</code><p>Start the public free-beta verification flow.</p></div>
+  <div class="card"><span class="method">POST</span><code>/webhooks/didit</code><p>Receive signed Didit status and data events. Requests require a fresh timestamp and valid HMAC signature.</p></div>
+  <div class="card"><span class="method">GET</span><code>/customer/usage</code><p>Read customer usage totals and recent verification activity.</p></div>
+  <h2>Authentication</h2>
+  <p>Customer integrations use <code>X-API-Key</code>. Portal and administrator routes use bearer tokens. Never place production credentials in frontend code or source control.</p>
+  <p class="warn"><strong>Beta notice:</strong> This deployment is a working beta. Complete your own security, privacy, compliance, and retention review before processing production identity traffic.</p>
+</main></body></html>
