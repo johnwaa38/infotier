@@ -1,20 +1,26 @@
 services:
   - type: web
     name: infotier-api
-    runtime: docker
+    runtime: node
     plan: free
-    dockerfilePath: api-nest/Dockerfile
-    dockerContext: api-nest
+    buildCommand: "cd api-nest && npm ci && npx prisma generate && npm run build"
+    startCommand: "cd api-nest && npx prisma migrate deploy && npm start"
     healthCheckPath: /health
     envVars:
       - key: PORT
         value: 3000
       - key: DATABASE_URL
-        fromDatabase:
-          name: infotier-postgres
-          property: connectionString
+        sync: false
       - key: WEBHOOK_SECRET
         sync: false
+      - key: DIDIT_API_KEY
+        sync: false
+      - key: DIDIT_WORKFLOW_ID
+        sync: false
+      - key: DIDIT_WEBHOOK_SECRET
+        sync: false
+      - key: DIDIT_CALLBACK_URL
+        value: https://infotier-api.onrender.com/v1/webhooks/didit
       - key: ADMIN_PASSWORD
         sync: false
       - key: JWT_SECRET
