@@ -19,8 +19,8 @@ services:
         sync: false
       - key: DIDIT_WEBHOOK_SECRET
         sync: false
-      - key: DIDIT_CALLBACK_URL
-        value: https://infotier-api.onrender.com/v1/webhooks/didit
+      - key: DIDIT_RETURN_URL
+        value: https://infotier-dashboard.onrender.com/?verification=complete
       - key: ADMIN_PASSWORD
         sync: false
       - key: JWT_SECRET
