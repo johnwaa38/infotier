@@ -7,9 +7,10 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { AppController } from './app.controller';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthModule } from './auth/auth.module';
+import { OperationsModule } from './operations/operations.module';
 
 @Module({
-  imports: [AuthModule, SessionsModule, VerificationsModule, WebhooksModule],
+  imports: [AuthModule, SessionsModule, VerificationsModule, WebhooksModule, OperationsModule],
   providers: [PrismaService, { provide: APP_GUARD, useClass: AuthGuard }],
   controllers: [AppController],
 })

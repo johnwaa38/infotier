@@ -16,6 +16,7 @@ export default function App(){
   const [logs, setLogs] = useState([])
   const [signupRequests, setSignupRequests] = useState([])
   const [inviteLink, setInviteLink] = useState('')
+  const [operations, setOperations] = useState(null)
   const api = useMemo(() => axios.create({ baseURL: base, headers: token ? { Authorization: `Bearer ${token}` } : {} }), [token])
 
   if (customerMode) return <CustomerPortal/>
@@ -32,7 +33,7 @@ export default function App(){
     } catch { setError('Login failed') }
   }
   async function refresh(){
-    try { const [r,s] = await Promise.all([api.get('/verifications'),api.get('/signup-requests')]); setItems(r.data);setSignupRequests(s.data);setError('') }
+    try { const [r,s,o] = await Promise.all([api.get('/verifications'),api.get('/signup-requests'),api.get('/operations/status')]); setItems(r.data);setSignupRequests(s.data);setOperations(o.data);setError('') }
     catch (e) { if (e.response?.status === 401) logout(); else setError('Could not load verifications') }
   }
   async function openItem(id){
@@ -70,6 +71,20 @@ export default function App(){
     <header style={styles.header}><div><h1 style={{margin:0}}>Infotier</h1><small>Verification administration</small></div><button onClick={logout}>Sign out</button></header>
     {error && <p role="alert" style={styles.error}>{error}</p>}
     <div style={styles.grid}>
+      <section style={{...styles.card,gridColumn:'1 / -1'}}>
+        <h2 style={{marginTop:0}}>Sentinel / watchdog</h2>
+        {!operations?<p>Waiting for operational telemetry…</p>:<>
+          <div style={styles.metrics}>
+            <StatusMetric label="Watchdog" value={operations.watchdog.state}/>
+            <StatusMetric label="Sentinel" value={operations.sentinel.state}/>
+            <StatusMetric label="Database" value={operations.dependencies.database}/>
+            <StatusMetric label="Didit" value={operations.dependencies.didit}/>
+            <StatusMetric label="Webhooks (24h)" value={operations.activity.webhookEvents24h ?? '-'}/>
+          </div>
+          <small>Rule-based operational controls · checked {new Date(operations.watchdog.checkedAt).toLocaleString()}</small>
+          {operations.sentinel.issues.map(issue=><p key={issue.code} style={issue.severity==='critical'?styles.error:styles.warning}>{issue.message}</p>)}
+        </>}
+      </section>
       <section style={styles.card}>
         <h2>Beta signup requests</h2>
         {inviteLink&&<div style={styles.linkBox}><strong>Customer invite ready</strong><a href={inviteLink} target="_blank" rel="noreferrer">{inviteLink}</a><button onClick={()=>navigator.clipboard.writeText(inviteLink)}>Copy invite</button></div>}
@@ -93,6 +108,10 @@ export default function App(){
       </section>
     </div>
   </main>
+}
+
+function StatusMetric({label,value}){
+  return <div style={styles.metric}><strong style={{fontSize:20}}>{String(value).replaceAll('_',' ')}</strong><span>{label}</span></div>
 }
 
 function BetaSignup(){
@@ -235,6 +254,7 @@ const styles = {
   input:{display:'block',boxSizing:'border-box',width:'100%',padding:10,margin:'8px 0 14px',border:'1px solid #b9c2d0',borderRadius:6},
   primary:{background:'#2356d8',color:'#fff',border:0,borderRadius:6,padding:'10px 16px'},
   error:{background:'#ffe5e5',color:'#8b1111',padding:10,borderRadius:6},
+  warning:{background:'#fff5d6',color:'#6d4b00',padding:10,borderRadius:6},
   linkBox:{display:'grid',gap:10,marginTop:16,padding:14,background:'#eef6ff',border:'1px solid #b9d7ff',borderRadius:8},
   requestRow:{display:'flex',justifyContent:'space-between',gap:16,alignItems:'center',padding:'14px 0',borderBottom:'1px solid #e4e8ef'},
   th:{textAlign:'left',borderBottom:'2px solid #dbe1ea',padding:8}, td:{borderBottom:'1px solid #e4e8ef',padding:8},
