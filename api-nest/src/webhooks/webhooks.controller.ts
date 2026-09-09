@@ -9,6 +9,21 @@ import { Public } from '../auth/public.decorator';
 export class WebhooksController {
   constructor(private prisma: PrismaService) {}
 
+  // Backward-compatible browser return for sessions created while the Didit
+  // callback was accidentally configured to this POST-only webhook endpoint.
+  @Public()
+  @Get('didit')
+  @Redirect('https://infotier-dashboard.onrender.com/?verification=complete', 302)
+  diditReturn(@Query('status') status?: string) {
+    const dashboard = (process.env.DASHBOARD_ORIGIN || 'https://infotier-dashboard.onrender.com')
+      .split(',')[0]
+      .replace(/\/$/, '');
+    const normalizedStatus = String(status || '').trim().toLowerCase().replace(/[^a-z_]/g, '');
+    const query = new URLSearchParams({ verification: 'complete' });
+    if (normalizedStatus) query.set('status', normalizedStatus);
+    return { url: `${dashboard}/?${query.toString()}` };
+  }
+
   @Public()
   @Post('stripe')
   async stripe(@Req() request: RawBodyRequest<Request>, @Headers('stripe-signature') signature?: string) {
