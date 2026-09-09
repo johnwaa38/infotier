@@ -23,7 +23,9 @@ export class SessionsService {
         body: JSON.stringify({
           workflow_id: workflowId,
           vendor_data: verification.id,
-          // Didit's callback is the browser return URL. Webhook delivery is\n          // configured separately in Didit and must keep pointing at the POST route.\n          callback: process.env.DIDIT_RETURN_URL || input.returnUrl || process.env.DASHBOARD_ORIGIN,
+          // Didit's callback is the browser return URL. Webhook delivery is
+          // configured separately in Didit and must keep pointing at the POST route.
+          callback: process.env.DIDIT_RETURN_URL || input.returnUrl || process.env.DASHBOARD_ORIGIN,
           callback_method: 'both',
           metadata: { customerId, userReference },
           language: 'en',
