@@ -6,6 +6,7 @@
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "build": "nest build",
+    "test": "npm run build && node --test dist/**/*.spec.js",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:generate": "prisma generate"
   },
@@ -27,7 +28,7 @@
     "typescript": "^5.4.0"
   },
   "overrides": {
-    "multer": "2.2.0",
+    "multer": "2.3.0",
     "lodash": "4.18.1"
   }
 }
