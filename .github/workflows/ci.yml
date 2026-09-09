@@ -16,6 +16,9 @@ jobs:
       - name: Type-check
         working-directory: api-nest
         run: npx tsc --noEmit
+      - name: API tests
+        working-directory: api-nest
+        run: npm test
       - name: Dashboard deps
         working-directory: dashboard
         run: npm ci
