@@ -1,1 +1,7 @@
-fatal: path 'api-nest/src/operations/operations.module.ts' exists on disk, but not in 'HEAD'
+import { Module } from '@nestjs/common';
+import { PrismaService } from '../common/prisma.service';
+import { OperationsController } from './operations.controller';
+import { OperationsService } from './operations.service';
+
+@Module({ controllers: [OperationsController], providers: [OperationsService, PrismaService] })
+export class OperationsModule {}
